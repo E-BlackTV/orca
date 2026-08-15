@@ -3,6 +3,7 @@
 // a narrow interrupt fallback synthesizes a final `done` when an agent misses its cancellation hook.
 
 import type { AgentProviderSessionMetadata } from './agent-session-resume'
+import type { AgentStatusObservation } from './agent-status-observation'
 import {
   normalizeInteractivePromptField,
   normalizeOptionalField,
@@ -151,6 +152,11 @@ export type AgentStatusEntry = {
    *  the transition may have been missed while no receiver was up, so freshness gates
    *  treat the row as stale immediately. Cleared by any accepted live event. */
   restoredUnconfirmed?: boolean
+  /** Who observed this row, on whose clock, in what order. Optional and read by nothing yet
+   *  (STA-4293): rows from old hosts, persisted rehydration, and any ingress not yet stamped
+   *  carry no observation, so consumers must keep working without it. See
+   *  agent-status-observation.ts for the ordering and staleness-decay contracts. */
+  observation?: AgentStatusObservation
 }
 
 export type MigrationUnsupportedPtyEntry = {
@@ -252,6 +258,10 @@ export type AgentStatusIpcPayload = ParsedAgentStatusPayload & {
   promptInteractionKey?: string
   /** See AgentStatusEntry.restoredUnconfirmed — hydrated nonterminal provenance. */
   restoredUnconfirmed?: boolean
+  /** See AgentStatusEntry.observation. Deliberately absent from AgentStatusPayload: it is
+   *  stamped by the ingress that accepted the event, never read out of the reported body,
+   *  so a hook or OSC writer cannot declare its own provenance. */
+  observation?: AgentStatusObservation
 }
 
 /** Wire shape for ordinary pane teardown or a stamped SSH disconnect batch. */
