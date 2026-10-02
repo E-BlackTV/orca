@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import { useLayoutEffect } from 'react'
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createTestStore } from '@/store/slices/browser-slice-test-harness'
@@ -39,7 +40,7 @@ afterEach(() => {
   Reflect.deleteProperty(window, 'api')
 })
 
-function mount() {
+function mount(invalidateBeforePendingEffect = false) {
   const selection = deferred<BrowserGrabResult>()
   const screenshot = deferred<BrowserCaptureSelectionScreenshotResult>()
   const awaitGrabSelection = vi
@@ -75,6 +76,12 @@ function mount() {
       setBrowserAnnotationTrayOpen,
       browserAnnotationsLength: 0
     })
+    const { cancelPendingBrowserCapture } = annotations
+    useLayoutEffect(() => {
+      if (invalidateBeforePendingEffect && grab.state === 'confirming') {
+        cancelPendingBrowserCapture()
+      }
+    }, [grab.state, cancelPendingBrowserCapture])
     return { grab, annotations }
   })
   return {
@@ -92,6 +99,22 @@ function selected(): BrowserGrabResult {
 }
 
 describe('capture cancellation on a document boundary', () => {
+  it('does not restore pending capture when loading cancels between commit and passive effects', async () => {
+    const h = mount(true)
+    act(() => h.result.current.annotations.startGrabIntent('annotate'))
+    await waitFor(() => expect(h.awaitGrabSelection).toHaveBeenCalledOnce())
+    await act(async () => {
+      h.selection.resolve(selected())
+      h.screenshot.resolve({ ok: false, reason: 'fixture' })
+      await h.screenshot.promise
+    })
+    expect(h.result.current.grab.state).toBe('idle')
+    expect(h.result.current.annotations.pendingAnnotationPayload).toBeNull()
+    act(() => h.result.current.annotations.handleAddBrowserAnnotation('Canceled capture', 'fix'))
+    expect(state.store?.getState().browserAnnotationsByPageId['page-1']).toBeUndefined()
+    expect(state.store?.getState().browserAnnotationMarkerIdsByPageId['page-1']).toBeUndefined()
+  })
+
   it('ignores a same-page selection that completes after document invalidation', async () => {
     const h = mount()
     act(() => h.result.current.annotations.startGrabIntent('annotate'))

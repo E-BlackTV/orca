@@ -157,13 +157,16 @@ export function useBrowserPageGrabAnnotations({
     [containerRef, dismissGrabToast, webviewRef]
   )
 
-  // Why: the same in-guest picker powers two flows — Cmd/Ctrl+C copies, the toolbar action creates a pending annotation.
+  // The picker supports clipboard copying and independently dismissible annotation drafts.
   useEffect(() => {
     if (grab.state !== 'confirming' || !grab.payload) {
       return
     }
     if (grabIntent === 'annotate') {
-      setPendingAnnotationPayload(grab.payload)
+      // Loading may cancel the selection before React accepts this pending snapshot.
+      setPendingAnnotationPayload(() =>
+        grabPayloadRef.current === grab.payload ? grab.payload : null
+      )
       return
     }
     if (!grab.contextMenu) {
