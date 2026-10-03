@@ -15,16 +15,18 @@ import type {
   BrowserGrabPayload
 } from '../../../../../shared/browser-grab-types'
 import { formatGrabPayloadAsText } from './GrabConfirmationSheet'
-import type { GrabModeHook } from './useGrabMode'
 import {
   createBrowserAnnotationId,
   createBrowserAnnotationPayload,
-  DEFAULT_BROWSER_ANNOTATION_PRIORITY,
-  type BrowserOverlayViewport
+  DEFAULT_BROWSER_ANNOTATION_PRIORITY
 } from '../describe-page/browser-annotation-geometry'
 import { useBrowserPageAnnotationViewportTracking } from './use-browser-page-annotation-viewport-tracking'
 import { runBrowserGrabActionShortcut } from './browser-page-grab-action'
-import type { BrowserPageGrabToastState, GrabIntent } from '../describe-page/browser-page-types'
+import type {
+  BrowserPageGrabAnnotationsOptions,
+  BrowserPageGrabToastState,
+  GrabIntent
+} from '../describe-page/browser-page-types'
 
 const copiedGrabToastMessage = (): string =>
   translate(
@@ -54,25 +56,7 @@ export function useBrowserPageGrabAnnotations({
   setBrowserOverlayViewport,
   browserAnnotationsLength,
   setBrowserAnnotationTrayOpen
-}: {
-  /** Scopes the stored annotations. Stable for the life of the surface. */
-  browserTabId: string
-  /**
-   * The id main resolves to a guest. Defaults to the annotation scope, which is the same string
-   * for a browser page — a preview re-mints this on recovery, and its annotations must not be
-   * orphaned when it does.
-   */
-  toolTargetId?: string
-  isActive: boolean
-  grab: GrabModeHook
-  containerRef: MutableRefObject<HTMLDivElement | null>
-  trackingContainer?: HTMLDivElement | null
-  trackingScroller?: HTMLDivElement | null
-  webviewRef: MutableRefObject<Electron.WebviewTag | null>
-  setBrowserOverlayViewport: Dispatch<SetStateAction<BrowserOverlayViewport>>
-  browserAnnotationsLength: number
-  setBrowserAnnotationTrayOpen: Dispatch<SetStateAction<boolean>>
-}): {
+}: BrowserPageGrabAnnotationsOptions): {
   grabIntent: GrabIntent
   startGrabIntent: (nextIntent: GrabIntent) => void
   pendingAnnotationPayload: BrowserGrabPayload | null
