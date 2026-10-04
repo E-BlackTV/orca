@@ -1,17 +1,17 @@
 import { runInNewContext } from 'node:vm'
-import { Window } from 'happy-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { buildBrowserAnnotationViewportBridgeScript } from './browser-annotation-viewport-bridge'
 
-const guestWindows: Window[] = []
+const guestAborts: (() => Promise<void>)[] = []
 
 afterEach(async () => {
-  await Promise.all(guestWindows.splice(0).map((window) => window.happyDOM.abort()))
+  await Promise.all(guestAborts.splice(0).map((abort) => abort()))
 })
 
-function createGuest() {
+async function createGuest() {
+  const { Window } = await import('happy-dom')
   const window = new Window()
-  guestWindows.push(window)
+  guestAborts.push(() => window.happyDOM.abort())
   const requestAnimationFrame = vi.fn(() => 17)
   const cancelAnimationFrame = vi.fn()
   const context = { window, document: window.document, requestAnimationFrame, cancelAnimationFrame }
@@ -40,8 +40,8 @@ function createGuest() {
 }
 
 describe('browser annotation guest document lifecycle', () => {
-  it('retires visible markers before a replacement document finishes loading', () => {
-    const guest = createGuest()
+  it('retires visible markers before a replacement document finishes loading', async () => {
+    const guest = await createGuest()
     guest.install()
     expect(guest.markerHosts()).toBe(1)
 
@@ -57,8 +57,8 @@ describe('browser annotation guest document lifecycle', () => {
     expect(guest.requestAnimationFrame).not.toHaveBeenCalled()
   })
 
-  it('removes the old unload listener when disabled and can install fresh markers', () => {
-    const guest = createGuest()
+  it('removes the old unload listener when disabled and can install fresh markers', async () => {
+    const guest = await createGuest()
     guest.install()
     guest.install(false)
     expect(guest.markerHosts()).toBe(0)
